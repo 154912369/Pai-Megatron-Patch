@@ -339,11 +339,9 @@ def save_mgmodel(mgmodel, args):
                         target_v = v[seg * tp_rank: seg * (tp_rank + 1)]
                     elif 'linear_q_b_proj' in k:
                         seg_0 = v.shape[0] // args.tensor_model_parallel_size
-                        seg_1 = v.shape[1] // args.tensor_model_parallel_size
-                        target_v = v[seg_0 * tp_rank: seg_0 * (tp_rank + 1), seg_1 * tp_rank: seg_1 * (tp_rank + 1)]
+                        target_v = v[seg_0 * tp_rank: seg_0 * (tp_rank + 1), :]
                     elif 'q_a_layernorm' in k:
-                        seg = v.shape[0] // args.tensor_model_parallel_size
-                        target_v = v[seg * tp_rank: seg * (tp_rank + 1)]
+                        target_v = v
                     elif 'linear_kv_b_proj' in k:
                         seg = v.shape[0] // args.tensor_model_parallel_size
                         target_v = v[seg * tp_rank:seg* (tp_rank + 1)]

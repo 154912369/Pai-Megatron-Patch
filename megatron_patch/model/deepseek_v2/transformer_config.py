@@ -30,3 +30,8 @@ class DeepSeekV2TransformerConfig(TransformerConfig):
     max_position_embeddings: int = None
 
     moe_aux_loss_coeff: float = 0.0
+
+    topk_method: str = None
+    n_group: int = None
+    topk_group: int = None
+    routed_scaling_factor:int = None

@@ -116,6 +116,7 @@ class TopKRouter(Router):
         self.topk = self.config.moe_router_topk
         self.routing_type = self.config.moe_router_load_balancing_type
         self.input_jitter = None
+        self.topk_method = self.config.topk_method
 
     def sinkhorn_load_balancing(self, logits: torch.Tensor):
         """Apply sinkhorn routing to the logits tensor.
@@ -161,12 +162,39 @@ class TopKRouter(Router):
         #scores = torch.softmax(top_logits, dim=-1, dtype=torch.float32).type_as(logits)
 
         routing_weights = torch.softmax(logits, dim=1, dtype=torch.float32).type_as(logits)
-        scores, indices = torch.topk(routing_weights, k=self.topk, dim=-1)
+        
 
+        if self.topk_method == "greedy":
+            scores, indices = torch.topk(
+                routing_weights, k=self.topk, dim=-1, sorted=False
+            )
+        elif self.topk_method == "group_limited_greedy":
+            token_size = routing_weights.size(0)
+            group_scores = (
+                routing_weights.view(token_size, self.config.n_group, -1).max(dim=-1).values
+            )  # [n, n_group]
+            group_idx = torch.topk(
+                group_scores, k=self.config.topk_group, dim=-1, sorted=False
+            )[
+                1
+            ]  # [n, top_k_group]
+            group_mask = torch.zeros_like(group_scores)  # [n, n_group]
+            group_mask.scatter_(1, group_idx, 1)  # [n, n_group]
+            score_mask = (
+                group_mask.unsqueeze(-1)
+                .expand(
+                    token_size, self.config.n_group, self.config.num_moe_experts // self.config.n_group
+                )
+                .reshape(token_size, -1)
+            )  # [n, e]
+            tmp_scores = routing_weights.masked_fill(~score_mask.bool(), 0.0)  # [n, e]
+            scores, indices = torch.topk(
+                tmp_scores, k=self.topk, dim=-1, sorted=False
+            )
         # Apply load balancing loss
         probs = torch.softmax(logits, dim=-1, dtype=torch.float32)
         scores = self.apply_load_balancing_loss(probs, indices, activation=scores)
-        return scores, indices
+        return scores * self.config.routed_scaling_factor, indices
 
     def apply_load_balancing_loss(
             self, probs: torch.Tensor, indices: torch.Tensor, activation: torch.Tensor,

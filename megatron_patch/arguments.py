@@ -410,5 +410,28 @@ def get_patch_args(parser):
         type=int,
         default=1
     )
+    
+    group.add_argument(
+        "--n-group",
+        type=int,
+        default=None
+    )
+    group.add_argument(
+        "--topk-method",
+        type=str,
+        default=None
+    )
+    group.add_argument(
+        "--topk-group",
+        type=int,
+        default=None
+    )
+    group.add_argument(
+        "--routed-scaling-factor",
+        type=int,
+        default=None
+    )
+
+
 
     return parser

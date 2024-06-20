@@ -277,7 +277,7 @@ class SelfAttention(Attention):
 
             self.linear_q_b_proj = build_module(
                 submodules.linear_q_b_proj,
-                self.config.q_lora_rank//self.world_size,
+                self.config.q_lora_rank,
                 self.config.num_attention_heads * self.q_head_dim,
                 config=self.config,
                 init_method=self.config.init_method,
@@ -315,7 +315,7 @@ class SelfAttention(Attention):
 
             self.q_a_layernorm = build_module(
                 submodules.q_a_layernorm,
-                hidden_size=self.config.q_lora_rank//self.world_size,
+                hidden_size=self.config.q_lora_rank,
                 config=self.config,
                 eps=self.config.layernorm_epsilon,
             )
@@ -333,6 +333,7 @@ class SelfAttention(Attention):
         """
         if self.config.q_lora_rank is not None:
             q, _ = self.linear_q_a_proj(hidden_states)
+            q = tensor_parallel.all_gather_last_dim_from_tensor_parallel_region(q)
             q = self.q_a_layernorm(q)
             q, _ = self.linear_q_b_proj(q)
         else:
